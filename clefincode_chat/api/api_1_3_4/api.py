@@ -1502,6 +1502,11 @@ def send(content, user, room , email, send_date = None , is_first_message = 0,is
                     if member.pending_messages >= 1:
                         frappe.db.set_value('ClefinCode Chat Channel User', member.name, 'pending_messages', member.pending_messages +1)             
         
+            try:
+                notify_mention_all(channel_doc, new_message.name, content, email)
+            except Exception:
+                frappe.log_error(title="@all notification failed", message=traceback.format_exc())
+
             for contributor in channel_doc.contributors:
                 if contributor.active == 1 and contributor.platform == "Chat":                    
                     if share_everyone == 0: share_doctype("ClefinCode Chat Message", new_message.name, contributor.user)
@@ -5377,7 +5382,14 @@ def get_names_for_mentions(search_term, room=None):
             if search_term.lower() in mention_data.get("value", "").lower()
         ]
 
-        return sorted(filtered_mentions, key=lambda d: d.get("value", ""))
+        filtered_mentions = sorted(filtered_mentions, key=lambda d: d.get("value", ""))
+
+        if room and frappe.db.get_value("ClefinCode Chat Channel", room, "type") == "Group":
+            term = search_term.strip().lower()
+            if "all".startswith(term) or "全員".startswith(term):
+                filtered_mentions.insert(0, {"id": MENTION_ALL_ID, "value": "all", "name": "all"})
+
+        return filtered_mentions
 # ==========================================================================================================
 def get_users_for_mentions(room = None):
     excepted_users_list = []
@@ -5782,7 +5794,6 @@ def get_room_name(room, room_type, sender_email = None):
 #=======================================================================================================
 def extract_images_from_html(doc: "Document", content: str, is_private: bool = False):
     from frappe.utils.file_manager import safe_b64decode
-    from frappe.utils.image import optimize_image
     from frappe import safe_decode    
     import re
     
@@ -5799,8 +5810,7 @@ def extract_images_from_html(doc: "Document", content: str, is_private: bool = F
             content = content.split(b",")[1]
         content = safe_b64decode(content)
 
-        content = optimize_image(content, mtype)
-
+        # no optimize_image: it always shrinks to 80% or less, which makes screenshots visibly blurry
         if "filename=" in headers:
             filename = headers.split("filename=")[-1]
             filename = safe_decode(filename).split(";")[0]
@@ -5881,6 +5891,35 @@ def push_notifications(registration_token, information, realtime_type, platform 
 def convert_to_string_values(data):
     return {key: str(value) for key, value in data.items()}
 # ============================================================================
+MENTION_ALL_ID = "__all__"
+
+
+def notify_mention_all(channel_doc, message_name, content, sender_email):
+    """In-app notification for @all. Alert type, because members already get the message itself:
+    no email for each @all."""
+    if channel_doc.type != "Group":
+        return
+    if not BeautifulSoup(content, "html.parser").find(class_="mention", attrs={"data-id": MENTION_ALL_ID}):
+        return
+    subject = _("{0} mentioned everyone in {1}").format(
+        frappe.utils.get_fullname(sender_email), channel_doc.channel_name
+    )
+    for member in channel_doc.members:
+        if member.is_removed == 0 and member.platform == "Chat" and member.user and member.user != sender_email:
+            frappe.get_doc(
+                {
+                    "doctype": "Notification Log",
+                    "for_user": member.user,
+                    "from_user": sender_email,
+                    "type": "Alert",
+                    "subject": subject,
+                    "document_type": "ClefinCode Chat Message",
+                    "document_name": message_name,
+                    "link": f"/desk/clefinchat?webview=1&room={channel_doc.name}",
+                }
+            ).insert(ignore_permissions=True)
+
+
 def is_mention(content):
     soup = BeautifulSoup(content, 'html.parser')    
     if soup.find(class_='mention'):
@@ -9086,8 +9125,12 @@ def edit_chat_message(message_name, new_content):
 
         if time_diff > (max_edit_time * 60):
             frappe.throw("Editing time has expired for this message.")
-        if msg.is_edited:
-            frappe.throw("This message has already been edited and cannot be edited again.")
+
+    max_edit_count = settings.max_edit_count or 0
+    if max_edit_count > 0:
+        edit_count = frappe.db.count("CiC Backup Chat Message", {"original_message": msg.name, "change_type": "Edit"})
+        if edit_count >= max_edit_count:
+            frappe.throw("This message has reached the maximum number of edits.")
 
     # Backup
     frappe.get_doc({
