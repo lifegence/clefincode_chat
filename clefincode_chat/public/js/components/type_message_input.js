@@ -65,7 +65,7 @@ export default class TypeMessageInput {
     const chat_space = this.chat_space;
 
     return {
-      allowedChars: /^[A-Za-z0-9_:\s-]*$/,
+      allowedChars: /^[\p{L}\p{M}\p{N}_:\s-]*$/u,
       minChars: 0,
       mentionDenotationChars: ["@"],
       isolateCharacter: true,

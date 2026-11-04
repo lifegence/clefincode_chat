@@ -4218,3 +4218,23 @@ html[data-theme-mode="dark"] .chat-plus-menu {
   -webkit-mask-image: linear-gradient(to bottom, black 75%, transparent 100%);
   mask-image: linear-gradient(to bottom, black 75%, transparent 100%);
 }
+
+.emoji-menu .emoji-more {
+  border: 0;
+  background: transparent;
+  width: 32px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.emoji-menu.emoji-menu-expanded {
+  flex-wrap: wrap;
+  width: min(304px, calc(100vw - 16px));
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.message-bubble:has(.mention[data-id="__all__"]) {
+  box-shadow: inset 3px 0 0 var(--primary, #2490ef);
+}

@@ -1940,12 +1940,18 @@ openEmojiMenu({ $bubble, messageName }) {
   this.closeEmojiMenu();
 
   const emojis = ['👍','❤️','😂','🤝','😢','🙏','😎'];
+  const more_emojis = [
+    '😀','😄','😁','😅','🤣','😊','😇','🙂','😉','😍','😘','😋','🤔','🤗','😐','😑',
+    '🙄','😏','😴','😷','🤒','😱','😭','😡','😳','😔','😕','🙁','😮','😲','👏','🙌',
+    '👌','✌️','👋','💪','🙇','🤞','👀','🎉','🎊','🎁','🔥','✨','⭐','💯','✅','❌',
+    '❗','❓','⚠️','💡','📌','📎','📅','☕','🍺','🍣','🚀','💰',
+  ];
 
   const $menu = $(`
     <div class="emoji-menu" role="menu" aria-label="Emoji reactions"></div>
   `);
 
-  emojis.forEach((emo) => {
+  const add_emojis = (list) => list.forEach((emo) => {
     const rendered = (window.emojione && emojione.toImage)
       ? emojione.toImage(emo)
       : emo;
@@ -1957,10 +1963,15 @@ openEmojiMenu({ $bubble, messageName }) {
     `);
   });
 
+  add_emojis(emojis);
+  $menu.append(`
+    <button type="button" class="emoji-more" aria-label="${__("More")}">+</button>
+  `);
+
   $("body").append($menu);
 
   const rect = $bubble[0].getBoundingClientRect();
-  requestAnimationFrame(() => {
+  const position_menu = () => requestAnimationFrame(() => {
         const w = $menu.outerWidth();
         const h = $menu.outerHeight();
 
@@ -1985,6 +1996,15 @@ openEmojiMenu({ $bubble, messageName }) {
 
         $menu.css({ left: `${left}px`, top: `${top}px` });
       });
+  position_menu();
+
+$menu.on("click", ".emoji-more", (e) => {
+  e.stopPropagation();
+  $menu.find(".emoji-more").remove();
+  $menu.addClass("emoji-menu-expanded");
+  add_emojis(more_emojis);
+  position_menu();
+});
 
 
   
@@ -3836,40 +3856,7 @@ this.$wrapper.off("click.chatMenuActions", ".edit-action")
 
     const messageName = $(this).data("message-name");
     const cached = me.messageCache.get(messageName) || {};
-    const isEditedBefore = Number(cached.is_edited || 0) === 1;
     const $wrapper = me.$chat_space.find(`[data-message-name="${messageName}"]`);
-
-    if (isEditedBefore) {
-      const d = new frappe.ui.Dialog({
-        title: "Edit Message",
-        fields: [
-          {
-            label: "Original Message",
-            fieldname: "original_message",
-            fieldtype: "Text Editor",
-            read_only: 1,
-            default: cached.original_content || "—"
-          },
-          {
-            label: "Current Message",
-            fieldname: "current_message",
-            fieldtype: "Text Editor",
-            read_only: 1,
-            default: cached.content || "—"
-          }
-        ],
-        primary_action_label: "OK",
-        primary_action: () => d.hide()
-      });
-
-      d.show();
-      d.$body.prepend(`
-        <div class="alert alert-warning" style="margin-bottom:10px;">
-          Editing is not allowed because it was edited before.
-        </div>
-      `);
-      return;
-    }
 
     const d = new frappe.ui.Dialog({
       title: "Edit Message",
@@ -4510,6 +4497,7 @@ if (app && app.is_webview) {
     this.$chat_space_container.find("span.mention").on("click", function () {
       if (
         $(this).data("id") == me.profile.user_email ||
+        $(this).data("id") == "__all__" ||
         $(this).data("is-doctype") == 1
       ) {
         return;
@@ -7831,6 +7819,7 @@ if (!is_deleted && type !== "info-message") {
     $message_element.find("span.mention").on("click", function () {
       if (
         $(this).data("id") == me.profile.user_email ||
+        $(this).data("id") == "__all__" ||
         $(this).data("is-doctype") == 1
       ) {
         return;
@@ -8482,6 +8471,7 @@ if (!is_deleted && type !== "info-message") {
     let mention_doctypes = [];
 
     mentions.forEach((mention) => {
+      if (mention.getAttribute("data-id") === "__all__") return;
       if (mention.getAttribute("data-is-doctype") != 1) {
         const email = mention.getAttribute("data-id");
         if (!uniqueEmails.has(email)) {

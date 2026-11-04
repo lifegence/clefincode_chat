@@ -17,6 +17,7 @@
   "limited_roles",
   "column_break_jxln",
   "max_edit_time",
+  "max_edit_count",
   "max_delete_time",
   "section_break_4",
   "start_time",
@@ -190,6 +191,13 @@
    "label": "Max Edit Time"
   },
   {
+   "default": "0",
+   "description": "How many times one message can be edited. 0 = no limit",
+   "fieldname": "max_edit_count",
+   "fieldtype": "Int",
+   "label": "Max Edit Count"
+  },
+  {
    "fieldname": "column_break_jxln",
    "fieldtype": "Column Break"
   }
@@ -197,7 +205,7 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-07-12 16:35:12.849028",
+ "modified": "2026-11-04 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "ClefinCode Chat",
  "name": "ClefinCode Chat Settings",
